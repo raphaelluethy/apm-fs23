@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
+import java.util.concurrent.Executors;
 import java.util.stream.Stream;
 
 import static java.util.Comparator.comparing;
@@ -20,6 +21,8 @@ public class DocFinder {
     private long sizeLimit = 1_000_000_000; // 1 GB
     private boolean ignoreCase = true;
 
+    private final int NUM_THREADS = 4;
+
     public DocFinder(Path rootDir) {
         this.rootDir = requireNonNull(rootDir);
     }
@@ -28,12 +31,35 @@ public class DocFinder {
         var allDocs = collectDocs();
 
         var results = new ArrayList<Result>();
+//        allDocs.parallelStream().forEach(doc -> {
+//            try {
+//                var res = findInDoc(searchText, doc);
+//                if (res.totalHits() > 0) {
+//                    results.add(res);
+//                }
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+//        });
+
+        var executor = Executors.newFixedThreadPool(NUM_THREADS);
         for (var doc : allDocs) {
-            var res = findInDoc(searchText, doc);
-            if (res.totalHits() > 0) {
-                results.add(res);
-            }
+            executor.submit(() -> {
+                        try {
+                            var res = findInDoc(searchText, doc);
+                            if (res.totalHits() > 0) {
+                                synchronized (results) {
+                                    results.add(res);
+                                }
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+            );
         }
+
+        executor.shutdown();
 
         results.sort(comparing(Result::getRelevance, reverseOrder()));
 
@@ -101,6 +127,24 @@ public class DocFinder {
             }
             searchHits.put(term, hits);
         }
+
+
+        /*
+        // alternative implementation using parallel streams, doesn't lead to a speedup
+        searchTerms.parallelStream().forEach(term -> {
+            var hits = new ArrayList<Integer>();
+            var index = 0;
+            while (index >= 0) {
+                index = text.indexOf(term, index);
+                if (index >= 0) {
+                    hits.add(index);
+                    index += term.length();
+                }
+            }
+            searchHits.put(term, hits);
+        });
+        */
+
         return searchHits;
     }
 
