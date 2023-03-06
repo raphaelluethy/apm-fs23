@@ -7,6 +7,8 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static java.util.Collections.synchronizedList;
@@ -74,7 +76,11 @@ public class DocFinder {
         }
 
         // normalize text: collapse whitespace and convert to lowercase
-        var collapsed = text.replace("\\p{javaWhitespace}+", " ");
+//        var collapsed = text.replaceAll("\\p{javaWhitespace}+", " ");
+        Pattern pattern = Pattern.compile("\\p{javaWhitespace}+");
+        Matcher matcher = pattern.matcher(text);
+        String collapsed = matcher.replaceAll(" ");
+
         var normalized = collapsed;
         if (ignoreCase) {
             normalized = collapsed.toLowerCase(Locale.ROOT);
