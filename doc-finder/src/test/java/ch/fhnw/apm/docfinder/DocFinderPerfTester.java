@@ -10,7 +10,7 @@ public class DocFinderPerfTester {
     private static final int REPETITIONS = 30;
     public static final String SEARCH_TEXT = "woman friend cat mom mouse friday";
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
         var booksDir = Path.of("perf-tests/books").toAbsolutePath();
         if (!Files.isDirectory(booksDir)) {
             System.err.println("Directory perf-tests/books not found. " +

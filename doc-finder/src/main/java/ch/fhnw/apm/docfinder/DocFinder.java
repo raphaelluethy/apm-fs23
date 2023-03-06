@@ -9,6 +9,7 @@ import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.stream.Stream;
 
+import static java.util.Collections.synchronizedList;
 import static java.util.Comparator.comparing;
 import static java.util.Comparator.reverseOrder;
 import static java.util.Objects.requireNonNull;
@@ -21,26 +22,16 @@ public class DocFinder {
     private long sizeLimit = 1_000_000_000; // 1 GB
     private boolean ignoreCase = true;
 
-    private final int NUM_THREADS = 4;
+    private final int NUM_THREADS = 16;
 
     public DocFinder(Path rootDir) {
         this.rootDir = requireNonNull(rootDir);
     }
 
-    public List<Result> findDocs(String searchText) throws IOException {
+    public List<Result> findDocs(String searchText) throws IOException, InterruptedException {
         var allDocs = collectDocs();
 
-        var results = new ArrayList<Result>();
-//        allDocs.parallelStream().forEach(doc -> {
-//            try {
-//                var res = findInDoc(searchText, doc);
-//                if (res.totalHits() > 0) {
-//                    results.add(res);
-//                }
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            }
-//        });
+        var synchronizedResults = synchronizedList(new ArrayList<Result>());
 
         var executor = Executors.newFixedThreadPool(NUM_THREADS);
         for (var doc : allDocs) {
@@ -48,9 +39,7 @@ public class DocFinder {
                         try {
                             var res = findInDoc(searchText, doc);
                             if (res.totalHits() > 0) {
-                                synchronized (results) {
-                                    results.add(res);
-                                }
+                                synchronizedResults.add(res);
                             }
                         } catch (IOException e) {
                             e.printStackTrace();
@@ -58,12 +47,10 @@ public class DocFinder {
                     }
             );
         }
-
         executor.shutdown();
+        synchronizedResults.sort(comparing(Result::getRelevance, reverseOrder()));
 
-        results.sort(comparing(Result::getRelevance, reverseOrder()));
-
-        return results;
+        return synchronizedResults;
     }
 
     private List<Path> collectDocs() throws IOException {
@@ -87,7 +74,7 @@ public class DocFinder {
         }
 
         // normalize text: collapse whitespace and convert to lowercase
-        var collapsed = text.replaceAll("\\p{javaWhitespace}+", " ");
+        var collapsed = text.replace("\\p{javaWhitespace}+", " ");
         var normalized = collapsed;
         if (ignoreCase) {
             normalized = collapsed.toLowerCase(Locale.ROOT);

@@ -7,14 +7,14 @@ import java.util.Scanner;
 
 public class DocFinderCli {
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
         new DocFinderCli().run();
     }
 
     private Path path;
     private DocFinder finder;
 
-    private void run() throws IOException {
+    private void run() throws IOException, InterruptedException {
         System.out.println("APM Doc Finder");
         System.out.println("--------------");
 
@@ -64,7 +64,7 @@ public class DocFinderCli {
         }
     }
 
-    private void search(String line) throws IOException {
+    private void search(String line) throws IOException, InterruptedException {
         var searchTerms = line.substring("search ".length()).strip();
         var results = finder.findDocs(searchTerms);
         for (var res : results) {
