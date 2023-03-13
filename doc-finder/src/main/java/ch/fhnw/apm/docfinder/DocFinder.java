@@ -24,7 +24,7 @@ public class DocFinder {
     private long sizeLimit = 1_000_000_000; // 1 GB
     private boolean ignoreCase = true;
 
-    private final int NUM_THREADS = 16;
+    private final int NUM_THREADS = 4;
 
     public DocFinder(Path rootDir) {
         this.rootDir = requireNonNull(rootDir);
@@ -34,7 +34,7 @@ public class DocFinder {
         var allDocs = collectDocs();
 
         var synchronizedResults = synchronizedList(new ArrayList<Result>());
-
+//        var results = new ArrayList<Result>();
         var executor = Executors.newFixedThreadPool(NUM_THREADS);
         for (var doc : allDocs) {
             executor.submit(() -> {
@@ -42,6 +42,9 @@ public class DocFinder {
                             var res = findInDoc(searchText, doc);
                             if (res.totalHits() > 0) {
                                 synchronizedResults.add(res);
+//                                synchronized (results) {
+//                                    results.add(res);
+//                                }
                             }
                         } catch (IOException e) {
                             e.printStackTrace();
@@ -51,8 +54,9 @@ public class DocFinder {
         }
         executor.shutdown();
         synchronizedResults.sort(comparing(Result::getRelevance, reverseOrder()));
-
+//        results.sort(comparing(Result::getRelevance, reverseOrder()));
         return synchronizedResults;
+//        return results;
     }
 
     private List<Path> collectDocs() throws IOException {
@@ -76,14 +80,16 @@ public class DocFinder {
         }
 
         // normalize text: collapse whitespace and convert to lowercase
+        // Can be omitted due to it not being relevant for the result
 //        var collapsed = text.replaceAll("\\p{javaWhitespace}+", " ");
-        Pattern pattern = Pattern.compile("\\p{javaWhitespace}+");
-        Matcher matcher = pattern.matcher(text);
-        String collapsed = matcher.replaceAll(" ");
+//        Pattern pattern = Pattern.compile("\\p{javaWhitespace}+");
+//        Matcher matcher = pattern.matcher(text);
+//        String collapsed = matcher.replaceAll(" ");
 
-        var normalized = collapsed;
+
+        var normalized = text;
         if (ignoreCase) {
-            normalized = collapsed.toLowerCase(Locale.ROOT);
+            normalized = normalized.toLowerCase(Locale.ROOT);
             searchText = searchText.toLowerCase(Locale.ROOT);
         }
 
